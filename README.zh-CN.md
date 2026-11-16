@@ -4,6 +4,10 @@
 
 **Go CLI 只写一次，同时交付给人、脚本和 AI Agent。**
 
+[![CI](https://github.com/jieraltjp/Axon/actions/workflows/ci.yml/badge.svg)](https://github.com/jieraltjp/Axon/actions/workflows/ci.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/jieraltjp/axon.svg)](https://pkg.go.dev/github.com/jieraltjp/axon)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 [English](README.md) · [简体中文](README.zh-CN.md)
 
 </div>
