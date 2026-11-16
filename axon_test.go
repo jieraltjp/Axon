@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 
@@ -320,7 +321,7 @@ func TestSkillFiles(t *testing.T) {
 
 func TestMCP(t *testing.T) {
 	h := newHarness(t, false, "")
-	session := connectMCP(t, h.app.MCPServer(MCPOptions{}))
+	session := connectMCP(t, h.app, MCPOptions{})
 
 	tools, err := session.ListTools(context.Background(), nil)
 	if err != nil {
@@ -357,26 +358,69 @@ func TestMCP(t *testing.T) {
 		t.Error("unknown arguments must be rejected")
 	}
 
-	all := connectMCP(t, h.app.MCPServer(MCPOptions{AllowDestructive: true}))
+	all := connectMCP(t, h.app, MCPOptions{AllowDestructive: true})
 	res, err = all.CallTool(context.Background(), &mcp.CallToolParams{Name: "delete", Arguments: map[string]any{"id": "7", "dry-run": true}})
 	if err != nil || res.IsError || len(h.deleted) != 0 {
 		t.Errorf("dry-run delete: %v %+v deleted=%v", err, res, h.deleted)
 	}
 }
 
-func connectMCP(t *testing.T, server *mcp.Server) *mcp.ClientSession {
+// connectMCP connects the official MCP SDK client to the built-in server,
+// which checks protocol compatibility, including the server/discover fallback.
+func connectMCP(t *testing.T, app *App, opts MCPOptions) *mcp.ClientSession {
 	t.Helper()
-	ct, st := mcp.NewInMemoryTransports()
-	ctx := context.Background()
-	if _, err := server.Connect(ctx, st, nil); err != nil {
-		t.Fatal(err)
-	}
-	session, err := mcp.NewClient(&mcp.Implementation{Name: "test", Version: "1"}, nil).Connect(ctx, ct, nil)
+	clientRead, serverWrite := io.Pipe()
+	serverRead, clientWrite := io.Pipe()
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- app.ServeMCP(ctx, serverRead, serverWrite, opts) }()
+	transport := &mcp.IOTransport{Reader: clientRead, Writer: clientWrite}
+	session, err := mcp.NewClient(&mcp.Implementation{Name: "test", Version: "1"}, nil).Connect(ctx, transport, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { session.Close() })
+	t.Cleanup(func() {
+		session.Close()
+		cancel()
+		if err := <-done; err != nil {
+			t.Errorf("ServeMCP: %v", err)
+		}
+	})
 	return session
+}
+
+func TestMCPProtocol(t *testing.T) {
+	h := newHarness(t, false, "")
+	in := strings.Join([]string{
+		`{"jsonrpc":"2.0","id":1,"method":"server/discover"}`,
+		`{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"protocolVersion":"2024-11-05"}}`,
+		`{"jsonrpc":"2.0","method":"notifications/initialized"}`,
+		`{"jsonrpc":"2.0","id":3,"method":"ping"}`,
+		`not json`,
+		`{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"nope"}}`,
+		`{"jsonrpc":"2.0","id":5,"method":"initialize","params":{"protocolVersion":"1999-01-01"}}`,
+	}, "\n") + "\n"
+	var out bytes.Buffer
+	if err := h.app.ServeMCP(context.Background(), strings.NewReader(in), &out, MCPOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	want := []string{
+		`"id":1,"error":{"code":-32601`,
+		`"protocolVersion":"2024-11-05"`,
+		`"id":3,"result":{}`,
+		`"id":null,"error":{"code":-32700`,
+		`"id":4,"error":{"code":-32602`,
+		`"protocolVersion":"2025-11-25"`,
+	}
+	if len(lines) != len(want) {
+		t.Fatalf("got %d responses (notifications must not be answered):\n%s", len(lines), out.String())
+	}
+	for i, w := range want {
+		if !strings.Contains(lines[i], w) {
+			t.Errorf("response %d = %s, want it to contain %s", i, lines[i], w)
+		}
+	}
 }
 
 func TestRegistrationPanics(t *testing.T) {

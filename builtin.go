@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 )
 
@@ -58,8 +57,8 @@ func (a *App) addBuiltins() {
 		Use:   "serve",
 		Short: "Run an MCP server on stdio",
 		RunE: func(cc *cobra.Command, args []string) error {
-			server := a.MCPServer(MCPOptions{AllowDestructive: allowDestructive})
-			if err := server.Run(cc.Context(), &mcp.StdioTransport{}); err != nil {
+			err := a.ServeMCP(cc.Context(), a.stdin, a.stdout, MCPOptions{AllowDestructive: allowDestructive})
+			if err != nil {
 				return Unavailable("MCP_FAILED", "mcp server: %v", err)
 			}
 			return nil
