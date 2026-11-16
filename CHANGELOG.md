@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here. Axon follows [Semantic Versioning](https://semver.org/); until v1.0, minor versions may contain breaking changes.
 
+## Unreleased
+
+### Added
+
+- `axon.Mount(app, cmds...)` mounts existing Cobra commands, so a CLI can move to Axon one command at a time.
+- `agent install codex` registers the CLI as an MCP server in `~/.codex/config.toml` (or `$CODEX_HOME`). It edits only its own table and preserves the rest of the file byte for byte, including CRLF line endings.
+- Runnable GoDoc examples.
+
 ## v0.1.0 (2026-11-16)
 
 The first public prototype.

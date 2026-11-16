@@ -90,12 +90,26 @@ $ hello mcp serve                   # 同一批命令作为 MCP 工具
 go install .                                # agent install 需要已安装的程序
 hello agent install claude-desktop          # 写入 Claude Desktop 的 MCP 配置
 hello agent install cursor                  # 写入 ~/.cursor/mcp.json
+hello agent install codex                   # 写入 ~/.codex/config.toml
 hello agent install claude-code             # 安装 Skill 到 ~/.claude/skills
 hello agent list                            # 查看安装状态
 hello agent uninstall cursor
 ```
 
 `agent install` 只修改自己的那一项；修改前会把原文件备份为 `.bak`；遇到无法解析的配置文件时拒绝修改；支持 `--dry-run` 预览。危险命令默认不会通过 MCP 暴露，除非加上 `--allow-destructive`。
+
+## 已经有 Cobra CLI 了？
+
+不需要重写。先把已有的命令挂载进来，再逐个改写：
+
+```go
+app := axon.New("mycli")
+axon.Mount(app, legacyRootCmd.Commands()...)        // 已有的 *cobra.Command，原样保留
+axon.Command(app, "status", "Show status", status)  // 新写或改写的命令是类型化的
+app.Run()
+```
+
+挂载的命令保持原有行为，会出现在帮助信息中，错误也会使用 Axon 的错误格式。用 `axon.Command` 改写之后，它们才会加入 `schema`、Skill 和 MCP，因为这些需要知道命令的类型。
 
 ## 试一试示例
 
@@ -167,7 +181,7 @@ go run ./examples/notes schema search
 | `schema [command]` | 机器可读的描述（`axon/v0`） |
 | `skills export [dir]` | 生成 Agent Skill；命令很多时自动拆分为索引和参考文件 |
 | `mcp serve [--allow-destructive]` | stdio 上的 MCP Server（支持协议版本 2024-11-05 到 2025-11-25，不增加额外依赖） |
-| `agent install\|uninstall\|list` | 接入 Claude Code、Claude Desktop 或 Cursor |
+| `agent install\|uninstall\|list` | 接入 Claude Code、Claude Desktop、Cursor 或 Codex |
 | `completion` | Shell 补全（来自 Cobra） |
 
 需要更底层的控制时，`app.Cobra()` 会返回底层的 `*cobra.Command`。
@@ -188,7 +202,7 @@ go run ./examples/notes schema search
 ## 路线图
 
 - [x] **v0.1**：类型化命令、自动 JSON、结构化错误、`schema`、`--fields`、风险分级、`skills export`、`mcp serve`、`agent install`
-- [ ] **v0.2**：流式输出、中间件、配置文件、挂载已有的 Cobra 命令、`axontest` 测试包
+- [ ] **v0.2**：~~挂载已有的 Cobra 命令~~（已完成）、~~Codex~~（已完成）、流式输出、中间件、配置文件、`axontest` 测试包
 - [ ] **v0.3**：MCP over HTTP、TOON 输出、下一步提示、策略、敏感字段
 - [ ] **v1.0**：契约稳定、文档站
 

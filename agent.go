@@ -15,9 +15,10 @@ import (
 // agentTarget is an agent the application can register itself with: either
 // as an MCP server in the agent's config file, or as a skill directory.
 type agentTarget struct {
-	name string
-	kind string // "mcp" or "skill"
-	path func(sys) (string, error)
+	name   string
+	kind   string // "mcp" or "skill"
+	format string // config file format for "mcp": "json" (default) or "toml"
+	path   func(sys) (string, error)
 }
 
 // sys gives access to the user's environment; tests replace it.
@@ -47,6 +48,13 @@ var agentTargets = []agentTarget{
 	{name: "claude-desktop", kind: "mcp", path: func(s sys) (string, error) {
 		dir, err := s.config()
 		return filepath.Join(dir, "Claude", "claude_desktop_config.json"), err
+	}},
+	{name: "codex", kind: "mcp", format: "toml", path: func(s sys) (string, error) {
+		if dir := os.Getenv("CODEX_HOME"); dir != "" {
+			return filepath.Join(dir, "config.toml"), nil
+		}
+		home, err := s.home()
+		return filepath.Join(home, ".codex", "config.toml"), err
 	}},
 	{name: "cursor", kind: "mcp", path: func(s sys) (string, error) {
 		home, err := s.home()
@@ -176,6 +184,18 @@ func (a *App) agentInstall(name string, dryRun, allowDestructive bool) (AgentRes
 	if allowDestructive {
 		args = append(args, "--allow-destructive")
 	}
+	if t.format == "toml" {
+		lines, existed, crlf, err := readText(path)
+		if err != nil {
+			return res, err
+		}
+		out, status := tomlUpsert(lines, a.name, exe, args)
+		res.Status = status
+		if status == "unchanged" || dryRun {
+			return res, nil
+		}
+		return res, writeWithBackup(path, joinText(out, crlf), existed)
+	}
 	entry := map[string]any{"command": exe, "args": args}
 
 	cfg, existed, err := readJSONObject(path)
@@ -225,6 +245,14 @@ func (a *App) agentUninstall(name string, dryRun bool) (AgentResult, error) {
 		}
 		return res, nil
 	}
+	if t.format == "toml" {
+		lines, existed, crlf, err := readText(res.Path)
+		if err != nil {
+			return res, err
+		}
+		out, _ := tomlRemove(lines, a.name)
+		return res, writeWithBackup(res.Path, joinText(out, crlf), existed)
+	}
 	cfg, existed, err := readJSONObject(res.Path)
 	if err != nil {
 		return res, err
@@ -246,6 +274,16 @@ func (a *App) agentStatus(t agentTarget) (AgentResult, error) {
 	if t.kind == "skill" {
 		res.Path = filepath.Join(path, skillName(a.name))
 		if _, err := os.Stat(filepath.Join(res.Path, "SKILL.md")); err == nil {
+			res.Status = "installed"
+		}
+		return res, nil
+	}
+	if t.format == "toml" {
+		lines, _, _, err := readText(path)
+		if err != nil {
+			return res, err
+		}
+		if _, _, _, ok := tomlTable(lines, a.name); ok {
 			res.Status = "installed"
 		}
 		return res, nil
@@ -301,6 +339,16 @@ func mcpServers(cfg map[string]any, path string) (map[string]any, error) {
 
 // writeJSONObject writes cfg to path, keeping a .bak copy of an existing file.
 func writeJSONObject(path string, cfg map[string]any, existed bool) error {
+	b, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return Errorf("ENCODE_FAILED", "cannot encode %s: %v", path, err)
+	}
+	return writeWithBackup(path, append(b, '\n'), existed)
+}
+
+// writeWithBackup writes data to path, first copying an existing file to
+// path.bak.
+func writeWithBackup(path string, data []byte, existed bool) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return Errorf("WRITE_FAILED", "cannot create %s: %v", filepath.Dir(path), err)
 	}
@@ -313,11 +361,7 @@ func writeJSONObject(path string, cfg map[string]any, existed bool) error {
 			return Errorf("WRITE_FAILED", "cannot back up %s: %v", path, err)
 		}
 	}
-	b, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return Errorf("ENCODE_FAILED", "cannot encode %s: %v", path, err)
-	}
-	if err := os.WriteFile(path, append(b, '\n'), 0o600); err != nil {
+	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return Errorf("WRITE_FAILED", "cannot write %s: %v", path, err)
 	}
 	return nil

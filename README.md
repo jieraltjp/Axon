@@ -90,12 +90,26 @@ $ hello mcp serve                   # the same commands as MCP tools
 go install .                                # agent install needs an installed binary
 hello agent install claude-desktop          # MCP server in Claude Desktop's config
 hello agent install cursor                  # MCP server in ~/.cursor/mcp.json
+hello agent install codex                   # MCP server in ~/.codex/config.toml
 hello agent install claude-code             # Skill in ~/.claude/skills
 hello agent list                            # where it is installed
 hello agent uninstall cursor
 ```
 
 `agent install` changes only its own entry, keeps a `.bak` copy of any file it edits, refuses to touch a config it cannot parse, and supports `--dry-run`. Destructive commands are not exposed over MCP unless you pass `--allow-destructive`.
+
+## Already have a Cobra CLI?
+
+You don't have to rewrite it. Mount your existing commands and convert them one at a time:
+
+```go
+app := axon.New("mycli")
+axon.Mount(app, legacyRootCmd.Commands()...)        // existing *cobra.Command values, unchanged
+axon.Command(app, "status", "Show status", status)  // new or rewritten commands are typed
+app.Run()
+```
+
+Mounted commands keep their behavior and appear in help; their errors use Axon's error format. They join `schema`, skills and MCP once you rewrite them with `axon.Command`, because Axon needs their types for that.
 
 ## Try the example
 
@@ -167,7 +181,7 @@ Return `axon.NotFound(...)`, `axon.Usage(...)`, `axon.PermissionDenied(...)`, `a
 | `schema [command]` | machine-readable manifest (`axon/v0`) |
 | `skills export [dir]` | write an Agent Skill; large CLIs are split into an index plus reference files |
 | `mcp serve [--allow-destructive]` | MCP server on stdio (protocol versions 2024-11-05 to 2025-11-25; no extra dependencies) |
-| `agent install\|uninstall\|list` | register with Claude Code, Claude Desktop or Cursor |
+| `agent install\|uninstall\|list` | register with Claude Code, Claude Desktop, Cursor or Codex |
 | `completion` | shell completions (from Cobra) |
 
 Need lower-level control? `app.Cobra()` returns the underlying `*cobra.Command`.
@@ -188,7 +202,7 @@ Need lower-level control? `app.Cobra()` returns the underlying `*cobra.Command`.
 ## Roadmap
 
 - [x] **v0.1**: typed commands, auto JSON, structured errors, `schema`, `--fields`, risk levels, `skills export`, `mcp serve`, `agent install`
-- [ ] **v0.2**: streaming output, middleware, config files, mounting existing Cobra commands, an `axontest` package
+- [ ] **v0.2**: ~~mounting existing Cobra commands~~ (done), ~~Codex~~ (done), streaming output, middleware, config files, an `axontest` package
 - [ ] **v0.3**: MCP over HTTP, TOON output, next-step hints, policies, secret fields
 - [ ] **v1.0**: stable contracts, docs site
 
