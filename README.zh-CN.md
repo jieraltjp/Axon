@@ -100,16 +100,18 @@ hello agent uninstall cursor
 
 ## 已经有 Cobra CLI 了？
 
-不需要重写。先把已有的命令挂载进来，再逐个改写：
+不需要重写。先把已有的 CLI 整个挂载进来，再逐个改写命令：
 
 ```go
 app := axon.New("mycli")
-axon.Mount(app, legacyRootCmd.Commands()...)        // 已有的 *cobra.Command，原样保留
+axon.MountRoot(app, legacyRootCmd)                  // 整个已有 CLI，原样保留
 axon.Command(app, "status", "Show status", status)  // 新写或改写的命令是类型化的
 app.Run()
 ```
 
-挂载的命令保持原有行为，会出现在帮助信息中，错误也会使用 Axon 的错误格式。用 `axon.Command` 改写之后，它们才会加入 `schema`、Skill 和 MCP，因为这些需要知道命令的类型。
+挂载后可以直接替换原来的 CLI：命令保留自己的 flag（包括根命令的持久 flag）、初始化钩子和根命令本身的动作，并出现在帮助信息中，错误使用 Axon 的错误格式。只想挂载部分命令时用 `axon.Mount(app, cmds...)`。用 `axon.Command` 改写之后，它们才会加入 `schema`、Skill 和 MCP，因为这些需要知道命令的类型。
+
+[`examples/yq`](examples/yq) 用这种方式把真实的 yq CLI 迁移到了 Axon，并加了两个类型化命令 `query` 和 `set`，Agent 可以通过 MCP 使用。
 
 ## 试一试示例
 

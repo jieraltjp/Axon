@@ -100,16 +100,18 @@ hello agent uninstall cursor
 
 ## Already have a Cobra CLI?
 
-You don't have to rewrite it. Mount your existing commands and convert them one at a time:
+You don't have to rewrite it. Mount your existing CLI and convert commands one at a time:
 
 ```go
 app := axon.New("mycli")
-axon.Mount(app, legacyRootCmd.Commands()...)        // existing *cobra.Command values, unchanged
+axon.MountRoot(app, legacyRootCmd)                  // your whole CLI, unchanged
 axon.Command(app, "status", "Show status", status)  // new or rewritten commands are typed
 app.Run()
 ```
 
-Mounted commands keep their behavior and appear in help; their errors use Axon's error format. They join `schema`, skills and MCP once you rewrite them with `axon.Command`, because Axon needs their types for that.
+The result is a drop-in replacement: mounted commands keep their flags (including the root's persistent flags), their setup hooks and the root's own action, and they appear in help. Their errors use Axon's error format. To mount only some commands, use `axon.Mount(app, cmds...)`. Mounted commands join `schema`, skills and MCP once you rewrite them with `axon.Command`, because Axon needs their types for that.
+
+[`examples/yq`](examples/yq) moves the real yq CLI to Axon this way and adds typed `query` and `set` commands that agents can use over MCP.
 
 ## Try the example
 

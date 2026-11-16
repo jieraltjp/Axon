@@ -84,10 +84,6 @@ func New(name string, opts ...AppOption) *App {
 	a.root.SetFlagErrorFunc(func(c *cobra.Command, err error) error {
 		return Usage("INVALID_FLAG", "%v", err).WithHint(helpHint(c))
 	})
-	pf := a.root.PersistentFlags()
-	pf.StringVarP(&a.output, "output", "o", "", "Output format: text, json or ndjson (default: text on a terminal, json otherwise)")
-	pf.StringVar(&a.fields, "fields", "", "Comma-separated fields to keep in the output")
-	pf.BoolVar(&a.envelope, "envelope", false, `Wrap output as {"ok":...,"data":...} or {"ok":false,"error":...}`)
 	a.addBuiltins()
 	return a
 }
@@ -118,6 +114,7 @@ func (a *App) ExecuteContext(ctx context.Context, args []string) int {
 	for _, c := range a.commands {
 		c.reset()
 	}
+	a.addOutputFlags(a.root)
 	resetFlags(a.root)
 	a.root.SetArgs(args)
 	a.root.SetIn(a.stdin)
@@ -134,6 +131,23 @@ func (a *App) ExecuteContext(ctx context.Context, args []string) int {
 	}
 	a.writeError(e)
 	return e.ExitCode()
+}
+
+// addOutputFlags gives cmd and its subcommands the output flags. They are
+// added to each command rather than once as persistent flags on the root, so
+// that mounted Cobra commands, which may define their own -o, never see them.
+func (a *App) addOutputFlags(cmd *cobra.Command) {
+	if cmd.Annotations[annotationMounted] != "" {
+		return
+	}
+	if fs := cmd.Flags(); fs.Lookup("output") == nil && cmd.Annotations[annotationLegacyRoot] == "" {
+		fs.StringVarP(&a.output, "output", "o", "", "Output format: text, json or ndjson (default: text on a terminal, json otherwise)")
+		fs.StringVar(&a.fields, "fields", "", "Comma-separated fields to keep in the output")
+		fs.BoolVar(&a.envelope, "envelope", false, `Wrap output as {"ok":...,"data":...} or {"ok":false,"error":...}`)
+	}
+	for _, sub := range cmd.Commands() {
+		a.addOutputFlags(sub)
+	}
 }
 
 // resetFlags restores every flag in the command tree to its default, so an

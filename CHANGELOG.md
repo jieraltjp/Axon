@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented here. Axon follows [Semantic Versioning](https://semver.org/); until v1.0, minor versions may contain breaking changes.
 
+## Unreleased
+
+### Added
+
+- `axon.MountRoot(app, root)` moves a whole Cobra CLI to Axon: it mounts the root's subcommands and keeps the root's own action and flags, so the result is a drop-in replacement.
+- `examples/yq`, a case study that moves the real yq CLI to Axon and adds typed `query` and `set` commands.
+
+### Changed
+
+- `--output`, `--fields` and `--envelope` are now flags of each Axon command rather than persistent flags of the root, so they no longer clash with the flags of mounted commands, such as yq's `-o`. They still work before the command name (`mycli -o json list`).
+
+### Fixed
+
+- Mounted commands keep the persistent flags and persistent pre- and post-run hooks they inherited from their old root. Before, a typical Cobra CLI that sets things up in its root crashed when mounted.
+- `Mount` skips commands named `help` and `completion`, which Axon provides, instead of panicking. Most Cobra CLIs have their own `completion` command.
+
 ## v0.2.0 (2026-11-16)
 
 ### Added
