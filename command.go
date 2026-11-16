@@ -146,7 +146,7 @@ func Command[In, Out any](app *App, path, description string, fn func(*Context, 
 	app.add(c)
 }
 
-var reservedTopLevel = map[string]bool{"schema": true, "skills": true, "mcp": true, "completion": true, "help": true}
+var reservedTopLevel = map[string]bool{"schema": true, "skills": true, "mcp": true, "agent": true, "completion": true, "help": true}
 
 func (a *App) add(c *command) {
 	if len(c.path) == 1 && reservedTopLevel[c.path[0]] {

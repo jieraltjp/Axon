@@ -15,6 +15,7 @@ import (
 
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // App is a command-line application.
@@ -32,6 +33,7 @@ type App struct {
 	stderr    io.Writer
 	stdinTTY  bool
 	stdoutTTY bool
+	sys       sys
 
 	// Global flags, re-parsed on every execution.
 	output   string
@@ -63,6 +65,7 @@ func New(name string, opts ...AppOption) *App {
 		stderr:    os.Stderr,
 		stdinTTY:  isTerminal(os.Stdin),
 		stdoutTTY: isTerminal(os.Stdout),
+		sys:       defaultSys,
 	}
 	for _, opt := range opts {
 		opt(a)
@@ -115,6 +118,7 @@ func (a *App) ExecuteContext(ctx context.Context, args []string) int {
 	for _, c := range a.commands {
 		c.reset()
 	}
+	resetFlags(a.root)
 	a.root.SetArgs(args)
 	a.root.SetIn(a.stdin)
 	a.root.SetOut(a.stdout)
@@ -130,6 +134,24 @@ func (a *App) ExecuteContext(ctx context.Context, args []string) int {
 	}
 	a.writeError(e)
 	return e.ExitCode()
+}
+
+// resetFlags restores every flag in the command tree to its default, so an
+// App can be executed more than once (in tests, or embedded in a program).
+// Axon's own raw values are reset by command.reset instead.
+func resetFlags(c *cobra.Command) {
+	reset := func(f *pflag.Flag) {
+		if _, ok := f.Value.(*rawValue); ok || !f.Changed {
+			return
+		}
+		_ = f.Value.Set(f.DefValue)
+		f.Changed = false
+	}
+	c.Flags().VisitAll(reset)
+	c.PersistentFlags().VisitAll(reset)
+	for _, sub := range c.Commands() {
+		resetFlags(sub)
+	}
 }
 
 // Group sets the description of a command group such as "tag" in "tag add".

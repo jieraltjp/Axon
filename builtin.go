@@ -67,6 +67,8 @@ func (a *App) addBuiltins() {
 	serve.Flags().BoolVar(&allowDestructive, "allow-destructive", false, "Expose destructive commands as tools")
 	mcpCmd.AddCommand(serve)
 	a.root.AddCommand(mcpCmd)
+
+	a.addAgentCommands()
 }
 
 // writeData writes a document such as the manifest. It is always JSON, since

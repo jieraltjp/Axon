@@ -2,9 +2,7 @@
 
 # Axon
 
-**The agent-native CLI framework for Go.**
-
-Write a command once. Ship it to humans, AI agents, and MCP clients.
+**Write a Go CLI once. Ship it to humans, scripts, and AI agents.**
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
@@ -12,7 +10,7 @@ Write a command once. Ship it to humans, AI agents, and MCP clients.
 
 > [!WARNING]
 > **Axon is an early prototype.** The core works and is tested, but the API will change before v1.0. Requires Go 1.25+.
-> Have an opinion? [Open an issue](https://github.com/jieraltjp/Axon/issues).
+> Feedback is very welcome: [open an issue](https://github.com/jieraltjp/Axon/issues).
 
 ---
 
@@ -21,7 +19,7 @@ Write a command once. Ship it to humans, AI agents, and MCP clients.
 Your CLI no longer has one kind of user. It also has:
 
 - **Agents with a shell** (Claude Code, Codex, ...), which work best with a Skill that tells them how to use the tool
-- **Agents without a shell** (chat apps, IDE assistants), which can only reach your tool through **MCP**
+- **Agents without a shell** (Claude Desktop, chat apps, IDE assistants), which can only reach your tool through **MCP**
 - **Scripts and programs**, which need **JSON output, structured errors and stable exit codes**
 - **Humans**, who still want help text, tables and a prompt before anything destructive
 
@@ -31,62 +29,144 @@ Supporting all of them usually means writing an MCP server, a Skill file, a JSON
 
 > **What we measured.** In our [benchmarks](bench/RESULTS.md), current models (Sonnet and Haiku) used a plain Cobra CLI about as well as an Axon one, and MCP, Skill + CLI and bare CLI cost about the same in Claude Code. Axon does not make agents smarter. It means you build the CLI once and reach every kind of user.
 
-## Try it
+## Quick start
 
 ```bash
-git clone https://github.com/jieraltjp/Axon.git && cd Axon
-go run ./examples/notes list              # a table, for humans
-go run ./examples/notes list | cat        # JSON, for agents and scripts
-go run ./examples/notes delete 1          # asks first; agents get exit code 4 unless --yes
-go run ./examples/notes schema search     # what an agent reads
-go run ./examples/notes skills export     # writes skills/notes/SKILL.md
+go get github.com/jieraltjp/axon
 ```
-
-## A quick look
 
 ```go
 package main
 
 import "github.com/jieraltjp/axon"
 
-type SearchInput struct {
-    Query string `arg:"" help:"Text to search for"`
-    Limit int    `default:"10" help:"Max results"`
+type GreetInput struct {
+	Name  string `arg:"" help:"Who to greet"`
+	Shout bool   `help:"Use capitals"`
 }
 
-type Note struct {
-    ID    string `json:"id"`
-    Title string `json:"title"`
+type Greeting struct {
+	Message string `json:"message"`
 }
 
 func main() {
-    app := axon.New("notes", axon.Description("Personal markdown notes"))
-
-    axon.Command(app, "search", "Full-text search notes",
-        func(ctx *axon.Context, in SearchInput) ([]Note, error) {
-            return search(in.Query, in.Limit)
-        })
-
-    axon.Command(app, "delete", "Delete a note", deleteNote, axon.Destructive())
-
-    app.Run()
+	app := axon.New("hello", axon.Description("Says hello"))
+	axon.Command(app, "greet", "Greet someone",
+		func(ctx *axon.Context, in GreetInput) (Greeting, error) {
+			msg := "Hello, " + in.Name
+			if in.Shout {
+				msg = "HELLO, " + in.Name + "!"
+			}
+			return Greeting{Message: msg}, nil
+		})
+	app.Run()
 }
 ```
 
-From that one definition you get:
+That single definition gives you:
 
-```bash
-notes search mcp                     # humans: a readable table
-notes search mcp | jq '.[0]'         # agents and scripts: JSON, automatically
-notes search mcp --fields id,title   # trimmed output
-notes delete 42                      # asks for confirmation, or exits with code 4 when not a TTY
-notes delete 42 --yes --dry-run      # explicit consent, preview only
-notes schema search                  # machine-readable command description
-notes skills export ./skills         # generates SKILL.md for Claude Code, Codex, ...
-notes mcp serve                      # the same commands as MCP tools
+```console
+$ hello greet Axon                  # on a terminal: readable output
+message:  Hello, Axon
+
+$ hello greet Axon | cat            # piped: JSON, automatically
+{"message":"Hello, Axon"}
+
+$ hello greet                       # errors are structured, exit codes are stable
+{"error":{"kind":"usage","code":"MISSING_ARGUMENT","message":"missing required <name>","hint":"run 'hello greet --help'","retryable":false}}
+
+$ hello schema greet                # what agents read: input and output JSON Schema
+$ hello skills export ./skills      # an Agent Skill (SKILL.md)
+$ hello mcp serve                   # the same commands as MCP tools
 ```
 
-Flags, arguments, validation, and JSON Schema all come from your Go types. **You never define them twice.**
+## Connect to agents
+
+```bash
+go install .                                # agent install needs an installed binary
+hello agent install claude-desktop          # MCP server in Claude Desktop's config
+hello agent install cursor                  # MCP server in ~/.cursor/mcp.json
+hello agent install claude-code             # Skill in ~/.claude/skills
+hello agent list                            # where it is installed
+hello agent uninstall cursor
+```
+
+`agent install` changes only its own entry, keeps a `.bak` copy of any file it edits, refuses to touch a config it cannot parse, and supports `--dry-run`. Destructive commands are not exposed over MCP unless you pass `--allow-destructive`.
+
+## Try the example
+
+```bash
+git clone https://github.com/jieraltjp/Axon.git && cd Axon
+go run ./examples/notes list              # a table, for humans
+go run ./examples/notes list | cat        # JSON, for agents and scripts
+go run ./examples/notes list --fields id,title
+go run ./examples/notes delete 1          # asks first; agents get exit code 4 unless --yes
+go run ./examples/notes delete 1 --dry-run
+go run ./examples/notes schema search
+```
+
+## Reference
+
+### Inputs: struct tags
+
+| Tag | Meaning |
+| --- | --- |
+| `arg:""` | positional argument, in field order; required unless it has a default |
+| `default:"10"` | default value |
+| `required:""` | the flag must be given |
+| `enum:"a,b,c"` | allowed values |
+| `env:"VAR"` | read from the environment when not given |
+| `help:"..."` | description for help, schema, skills and MCP |
+| `short:"n"` | one-letter alias |
+| `name:"x"` | override the flag name (default: the field name in kebab-case) |
+| `axon:"-"` | ignore the field |
+
+Supported types: `string`, `bool`, `int`, `int64`, `float64`, `time.Duration`, `[]string`, `[]int`. Slice flags can be repeated or comma-separated. Outputs can be any value that encodes to JSON.
+
+### Command options
+
+| Option | Effect |
+| --- | --- |
+| `axon.Write()` | marks the command as changing state |
+| `axon.Destructive()` | requires confirmation: a prompt on a terminal, otherwise `--yes`; hidden from MCP by default |
+| `axon.SupportsDryRun()` | adds `--dry-run`; the handler checks `ctx.DryRun()` |
+| `axon.Example(...)` | examples for help, schema and skills |
+| `axon.Aliases(...)` | alternative names |
+| `axon.Hidden()` | hides the command everywhere |
+| `axon.Exclude(axon.ProjectionMCP, axon.ProjectionSkill)` | keeps it out of MCP or skills |
+| `axon.Group(app, "tag", "...")` | describes a command group such as `tag add` |
+
+### Output and errors
+
+| Flag | Effect |
+| --- | --- |
+| `-o text\|json\|ndjson` | output format; default is text on a terminal and JSON otherwise (also `AXON_OUTPUT`) |
+| `--fields a,b` | keep only these fields |
+| `--envelope` | wrap output as `{"ok":true,"data":...}` or `{"ok":false,"error":...}` |
+
+Return `axon.NotFound(...)`, `axon.Usage(...)`, `axon.PermissionDenied(...)`, `axon.Unavailable(...)` or `axon.Errorf(...)` to control the error kind, code and hint. Any other error becomes a general error.
+
+| Exit code | Meaning |
+| --- | --- |
+| 0 | success |
+| 1 | error |
+| 2 | usage error |
+| 3 | not found |
+| 4 | confirmation required |
+| 5 | permission denied |
+| 6 | temporary failure; retry |
+
+### Built-in commands
+
+| Command | Purpose |
+| --- | --- |
+| `schema [command]` | machine-readable manifest (`axon/v0`) |
+| `skills export [dir]` | write an Agent Skill; large CLIs are split into an index plus reference files |
+| `mcp serve [--allow-destructive]` | MCP server on stdio (protocol versions 2024-11-05 to 2025-11-25; no extra dependencies) |
+| `agent install\|uninstall\|list` | register with Claude Code, Claude Desktop or Cursor |
+| `completion` | shell completions (from Cobra) |
+
+Need lower-level control? `app.Cobra()` returns the underlying `*cobra.Command`.
 
 ## How it compares
 
@@ -99,23 +179,18 @@ Flags, arguments, validation, and JSON Schema all come from your Go types. **You
 | Skill generation | ✗ | ✗ | ✓ | ✓ | **✓** |
 | MCP server | ✗ | ✓ | ✓ | client only | **✓** |
 | Risk levels and confirmation | ✗ | ✗ | partial | ✗ | **✓** |
-| Builds on Cobra (easy migration) | — | ✓ | ✗ | ✗ | **✓** |
-
-## Principles
-
-1. **Single source of truth.** Each command is defined once; every interface is derived from that definition.
-2. **Agent-ready by default.** You don't configure it; it's already there.
-3. **Humans stay first-class.** Help text, completions, and readable output are at least as good as Cobra's.
-4. **Machine contracts are versioned.** Output, errors, exit codes, and the manifest are treated as an API.
-5. **Safe by default.** Destructive commands require consent, and agents get the more conservative behaviour.
+| Builds on Cobra | — | ✓ | ✗ | ✗ | **✓** |
 
 ## Roadmap
 
-- [ ] **v0.1**: typed commands, auto JSON, structured errors, `schema`, `--fields`, risk levels, `skills export`, `mcp serve`
-- [ ] **v0.2**: streaming, middleware, config files, `agent install <claude-code|codex|cursor|...>`, Cobra migration helpers, `axontest`
-- [ ] **v0.3**: TOON output, next-step hints, policies, secret fields, MCP over HTTP
+- [x] **v0.1**: typed commands, auto JSON, structured errors, `schema`, `--fields`, risk levels, `skills export`, `mcp serve`, `agent install`
+- [ ] **v0.2**: streaming output, middleware, config files, mounting existing Cobra commands, an `axontest` package
+- [ ] **v0.3**: MCP over HTTP, TOON output, next-step hints, policies, secret fields
 - [ ] **v1.0**: stable contracts, docs site
-- [ ] **Later: Axon Hub.** Every Axon CLI speaks the same manifest protocol, so one `axon` binary could discover, search, govern, and serve all of them.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
