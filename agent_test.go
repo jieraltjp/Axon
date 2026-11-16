@@ -16,6 +16,7 @@ func agentHarness(t *testing.T, exe string) (*harness, string) {
 	h.app.sys = sys{
 		home:       func() (string, error) { return filepath.Join(root, "home"), nil },
 		config:     func() (string, error) { return filepath.Join(root, "config"), nil },
+		localData:  func() string { return filepath.Join(root, "local") },
 		executable: func() (string, error) { return exe, nil },
 	}
 	return h, root
@@ -106,6 +107,25 @@ func TestAgentInstallMCP(t *testing.T) {
 	h.run("agent", "uninstall", "claude-desktop")
 	if res := agentResult(t, h); res.Status != "not_installed" {
 		t.Errorf("second uninstall status = %q", res.Status)
+	}
+}
+
+func TestClaudeDesktopMSIX(t *testing.T) {
+	h, root := agentHarness(t, "/usr/local/bin/tool")
+	pkg := filepath.Join(root, "local", "Packages", "Claude_pzs8sxrjxfjjc")
+	if err := os.MkdirAll(pkg, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if code := h.run("agent", "install", "claude-desktop"); code != ExitOK {
+		t.Fatalf("install: exit %d, %s", code, h.stderr)
+	}
+	res := agentResult(t, h)
+	want := filepath.Join(pkg, "LocalCache", "Roaming", "Claude", "claude_desktop_config.json")
+	if res.Path != want || !strings.Contains(res.Note, "Quit Claude Desktop") {
+		t.Errorf("result = %+v, want path %s and a restart note", res, want)
+	}
+	if _, err := os.Stat(want); err != nil {
+		t.Errorf("config not written to the MSIX location: %v", err)
 	}
 }
 

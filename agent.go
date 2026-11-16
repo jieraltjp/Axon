@@ -19,18 +19,38 @@ type agentTarget struct {
 	kind   string // "mcp" or "skill"
 	format string // config file format for "mcp": "json" (default) or "toml"
 	path   func(sys) (string, error)
+	note   string // what the user must do for the change to take effect
+}
+
+// claudeDesktopConfig locates Claude Desktop's config file. The Windows MSIX
+// build (official installer, Microsoft Store, WinGet) runs in a container
+// and reads a virtualized copy under %LOCALAPPDATA%\Packages\Claude_*,
+// not the documented %APPDATA%\Claude path.
+func claudeDesktopConfig(s sys) (string, error) {
+	if local := s.localData(); local != "" {
+		matches, _ := filepath.Glob(filepath.Join(local, "Packages", "Claude_*"))
+		for _, m := range matches {
+			if info, err := os.Stat(m); err == nil && info.IsDir() {
+				return filepath.Join(m, "LocalCache", "Roaming", "Claude", "claude_desktop_config.json"), nil
+			}
+		}
+	}
+	dir, err := s.config()
+	return filepath.Join(dir, "Claude", "claude_desktop_config.json"), err
 }
 
 // sys gives access to the user's environment; tests replace it.
 type sys struct {
 	home       func() (string, error)
 	config     func() (string, error)
+	localData  func() string // %LOCALAPPDATA% on Windows, empty elsewhere
 	executable func() (string, error)
 }
 
 var defaultSys = sys{
-	home:   os.UserHomeDir,
-	config: os.UserConfigDir,
+	home:      os.UserHomeDir,
+	config:    os.UserConfigDir,
+	localData: func() string { return os.Getenv("LOCALAPPDATA") },
 	executable: func() (string, error) {
 		exe, err := os.Executable()
 		if err != nil {
@@ -45,10 +65,8 @@ var agentTargets = []agentTarget{
 		home, err := s.home()
 		return filepath.Join(home, ".claude", "skills"), err
 	}},
-	{name: "claude-desktop", kind: "mcp", path: func(s sys) (string, error) {
-		dir, err := s.config()
-		return filepath.Join(dir, "Claude", "claude_desktop_config.json"), err
-	}},
+	{name: "claude-desktop", kind: "mcp", path: claudeDesktopConfig,
+		note: "Quit Claude Desktop completely (including from the system tray) and start it again to load the change."},
 	{name: "codex", kind: "mcp", format: "toml", path: func(s sys) (string, error) {
 		if dir := os.Getenv("CODEX_HOME"); dir != "" {
 			return filepath.Join(dir, "config.toml"), nil
@@ -69,6 +87,7 @@ type AgentResult struct {
 	Path   string `json:"path"`
 	Status string `json:"status"`
 	DryRun bool   `json:"dry_run,omitempty"`
+	Note   string `json:"note,omitempty"`
 }
 
 func findTarget(name string) (agentTarget, error) {
@@ -154,7 +173,7 @@ func (a *App) agentInstall(name string, dryRun, allowDestructive bool) (AgentRes
 	if err != nil {
 		return AgentResult{}, Errorf("NO_CONFIG_DIR", "cannot locate the %s configuration: %v", name, err)
 	}
-	res := AgentResult{Target: t.name, Kind: t.kind, DryRun: dryRun}
+	res := AgentResult{Target: t.name, Kind: t.kind, DryRun: dryRun, Note: t.note}
 
 	if t.kind == "skill" {
 		dir := filepath.Join(path, skillName(a.name))

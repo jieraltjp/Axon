@@ -10,6 +10,10 @@ All notable changes to this project are documented here. Axon follows [Semantic 
 - `agent install codex` registers the CLI as an MCP server in `~/.codex/config.toml` (or `$CODEX_HOME`). It edits only its own table and preserves the rest of the file byte for byte, including CRLF line endings.
 - Runnable GoDoc examples.
 
+### Fixed
+
+- `agent install claude-desktop` now writes to the config that the Windows MSIX build of Claude Desktop actually reads (`%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude`). This build comes from the official installer, the Microsoft Store and WinGet. Results now include a note on what to do next, such as restarting Claude Desktop.
+
 ## v0.1.0 (2026-11-16)
 
 The first public prototype.
