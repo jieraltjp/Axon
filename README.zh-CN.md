@@ -31,7 +31,7 @@
 
 **用 Axon，每个命令只需写一次类型化的 Go 函数，所有接口都从这一份定义而来。** [notes 示例](examples/notes)总共 236 行，包含 MCP Server、Skill、`schema` 命令、JSON 模式和确认流程。用普通 Cobra 写的同一个 CLI 有 261 行，而这些一样都没有。
 
-> **实测结论。** 在我们的[对比测试](bench/RESULTS.md)中，当前的模型（Sonnet 和 Haiku）使用普通 Cobra CLI 的效果和 Axon CLI 相差不大；在 Claude Code 中，MCP、Skill + CLI、只有 CLI 三种方式的成本也差不多。Axon 不会让 Agent 变聪明，它的价值在于：CLI 只写一次，就能覆盖所有类型的用户。
+> **实测结论。** 在我们的[对比测试](bench/RESULTS.md)中，当前的模型（Sonnet 和 Haiku）使用普通 Cobra CLI 的效果和 Axon CLI 相差不大；在 Claude Code 中，MCP、Skill + CLI、只有 CLI 三种方式的成本也差不多。对于没有 shell 的 Agent，普通 Cobra CLI 加上 ophis 这个 MCP 适配器，效果也和 Axon 自带的 MCP 服务器相当。Axon 不会让 Agent 变聪明，它的价值在于：CLI 只写一次，就能覆盖所有类型的用户。
 
 ## 快速上手
 

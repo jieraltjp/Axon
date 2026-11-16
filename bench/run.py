@@ -11,11 +11,15 @@ Configurations:
     control                       the same CLI written with plain Cobra, bare CLI
     large-mcp, large-skill, large-cli
                                   the Axon example plus 75 unrelated commands
+    noshell-axon, noshell-ophis   no built-in tools at all (like a chat app):
+                                  the Axon example's MCP server, or the control
+                                  CLI exposed over MCP with ophis
 
 Usage (add .exe to the binaries on Windows):
     go build -o bench/bin/axon/notes ./examples/notes
     go build -o bench/bin/control/notes ./bench/control
     go build -o bench/bin/large/notes ./bench/large
+    (cd bench/ophis && go build -o ../bin/ophis/notes .)
     python bench/run.py --repeat 3 --configs cli,control
 """
 
@@ -43,6 +47,8 @@ CONFIGS = {
     "large-mcp": ("large", "mcp"),
     "large-skill": ("large", "skill"),
     "large-cli": ("large", "cli"),
+    "noshell-axon": ("axon", "noshell"),
+    "noshell-ophis": ("ophis", "noshell"),
 }
 
 
@@ -123,19 +129,15 @@ def setup(config, workdir, store):
     env_store = str(store)
     bin_dir, interface = CONFIGS[config]
     notes = ROOT / "bin" / bin_dir / EXE
-    if interface == "mcp":
-        mcp = {
-            "mcpServers": {
-                "notes": {
-                    "command": str(notes),
-                    "args": ["mcp", "serve", "--allow-destructive"],
-                    "env": {"NOTES_FILE": env_store},
-                }
-            }
-        }
+    if interface in ("mcp", "noshell"):
+        args = ["mcp", "start"] if bin_dir == "ophis" else ["mcp", "serve", "--allow-destructive"]
+        mcp = {"mcpServers": {"notes": {"command": str(notes), "args": args, "env": {"NOTES_FILE": env_store}}}}
         cfg = workdir / "mcp.json"
         cfg.write_text(json.dumps(mcp), encoding="utf-8")
-        return ["--mcp-config", str(cfg), "--allowedTools", "mcp__notes"]
+        extra = ["--mcp-config", str(cfg), "--allowedTools", "mcp__notes"]
+        if interface == "noshell":
+            extra += ["--tools", ""]  # no Bash, no file access: only the MCP tools
+        return extra
     if interface == "skill":
         subprocess.run([str(notes), "skills", "export", str(workdir / ".claude" / "skills")],
                        check=True, capture_output=True, env={**os.environ, "NOTES_FILE": env_store})

@@ -11,6 +11,8 @@ These benchmarks ask whether Axon's agent-facing defaults help real agents. All 
 | `cli` | Axon notes example | the CLI alone; the agent is told only that `notes` exists |
 | `control` | the same notes CLI written with plain Cobra (text output, text errors, exit code 1, `--force` to delete) | the CLI alone |
 | `large-*` | Axon notes example plus 75 unrelated commands (81 in total) | as above |
+| `noshell-axon` | Axon notes example | `notes mcp serve`, with every built-in tool disabled (`--tools ""`): no shell, no file access |
+| `noshell-ophis` | the plain Cobra control CLI, exposed over MCP with [ophis](https://github.com/njayp/ophis) v1.1.4 | as above |
 
 ## Tasks
 
@@ -71,16 +73,41 @@ Tasks: find, add, count, delete. The generated skill split into an index (about 
 
 On the "tidy" prompt, no configuration deleted anything (`mcp`, `skill`, `cli` and `control` were each 3/3). In every run, the agent looked at the notes and reported that nothing needed changing.
 
+## 5. Agents without a shell: Axon vs Cobra + ophis (3 repetitions)
+
+Chat apps and IDE assistants often cannot run commands, so MCP is their only way in. A plain Cobra CLI is then unusable as is; the usual fix today is an adapter such as ophis, which turns each Cobra command into an MCP tool that takes positional `args` and a `flags` object and returns the command's text output. These runs give the agent no built-in tools at all, only the MCP tools.
+
+| Model | Axon | Cobra + ophis | Avg input tokens (Axon / ophis) | Avg cost (Axon / ophis) |
+| --- | --- | --- | --- | --- |
+| Sonnet | 21/21 | 18/21 | 8,060 / 9,099 | 0.0120 / 0.0125 |
+| Haiku | 19/21 | 21/21 | 21,257 / 20,580 | 0.0191 / 0.0198 |
+
+| Task | Sonnet Axon | Sonnet ophis | Haiku Axon | Haiku ophis |
+| --- | --- | --- | --- | --- |
+| find | 3/3 | 3/3 | 3/3 | 3/3 |
+| add | 3/3 | 3/3 | 3/3 | 3/3 |
+| count | 3/3 | 3/3 | 3/3 | 3/3 |
+| delete | 3/3 | 3/3 | 3/3 | 3/3 |
+| missing | 3/3 | 3/3 | 1/3 ¹ | 3/3 |
+| json | 3/3 | 0/3 ² | 3/3 | 3/3 |
+| tidy | 3/3 | 3/3 | 3/3 | 3/3 |
+
+1. A real failure, and one Axon's design caused. The not-found error carries the hint `run 'notes list' to see note IDs`. In the failing runs, Haiku followed the hint, listed the notes and asked which one the user meant, without saying that note 42 does not exist. In a rerun with full answers, Haiku answered "Note 42 doesn't exist" twice and followed the hint once.
+2. The same error as in the control group: Sonnet read the IDs from the text table and returned them as numbers.
+
+ophis is a good adapter: on these tasks the agents used it about as well as Axon's own MCP server, at about the same cost. The differences are type fidelity, which favors Axon's structured output, and a hint that, for a smaller model, competed with answering the question.
+
 ## Conclusions
 
 - **Current models use ordinary CLIs well.** On simple tasks, a plain Cobra CLI with text output did as well as the Axon CLI, with both Sonnet and Haiku. The only real difference was type fidelity: once, the IDs read from a text table came back as numbers.
 - **The interface barely changes cost in Claude Code.** Claude Code defers MCP tool definitions, so even 81 MCP tools cost about as much as the bare CLI. The generated skill was the most expensive option, because the agent spends extra turns reading it. At 81 commands that came to about 25% more input tokens and two more turns.
 - **The safety guard was not exercised.** The agents did not try destructive actions that the user had not asked for. The guard remains a backstop; these runs show nothing about its value.
+- **Without a shell, an adapter works too.** Over MCP alone, the plain Cobra CLI with ophis did about as well as Axon (39/42 vs 40/42). What Axon adds there is again structure: typed results, error codes and risk annotations, rather than a higher success rate.
+- **Hints in errors are not free.** A hint that suggests a next command can lead a smaller model to run it instead of answering.
 - **What Axon does provide measurably is developer leverage.** The Axon notes example is 236 lines, and that includes JSON output, `schema`, a skill, an MCP server, structured errors and confirmation. The plain Cobra version is 261 lines and has none of these.
 
 ## Open questions
 
-- Agents that cannot run a shell (chat apps and IDE assistants without a terminal) need MCP. That is where one definition serving every interface matters, and these benchmarks do not measure it.
 - Scripts and programs, not LLMs, rely on JSON output and stable exit codes.
 - Other agents (Codex, Cursor, Gemini CLI), harder multi-step tasks, and CLIs with complex output.
 - Skill generation should cost less: for example, inline the most common commands and keep references for the rest.

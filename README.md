@@ -31,7 +31,7 @@ Supporting all of them usually means writing an MCP server, a Skill file, a JSON
 
 **With Axon, you write each command once as a typed Go function and every interface comes from that.** The [notes example](examples/notes) is 236 lines including its MCP server, Skill, `schema` command, JSON mode and confirmation flow. The same CLI written with plain Cobra is 261 lines and has none of these.
 
-> **What we measured.** In our [benchmarks](bench/RESULTS.md), current models (Sonnet and Haiku) used a plain Cobra CLI about as well as an Axon one, and MCP, Skill + CLI and bare CLI cost about the same in Claude Code. Axon does not make agents smarter. It means you build the CLI once and reach every kind of user.
+> **What we measured.** In our [benchmarks](bench/RESULTS.md), current models (Sonnet and Haiku) used a plain Cobra CLI about as well as an Axon one, and MCP, Skill + CLI and bare CLI cost about the same in Claude Code. For agents without a shell, a plain Cobra CLI behind the ophis MCP adapter did about as well as Axon's built-in server. Axon does not make agents smarter. It means you build the CLI once and reach every kind of user.
 
 ## Quick start
 
