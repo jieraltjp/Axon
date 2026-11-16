@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // agentHarness points the app at temporary home and config directories.
@@ -110,22 +111,60 @@ func TestAgentInstallMCP(t *testing.T) {
 	}
 }
 
-func TestClaudeDesktopMSIX(t *testing.T) {
-	h, root := agentHarness(t, "/usr/local/bin/tool")
-	pkg := filepath.Join(root, "local", "Packages", "Claude_pzs8sxrjxfjjc")
-	if err := os.MkdirAll(pkg, 0o755); err != nil {
-		t.Fatal(err)
+func TestClaudeDesktopConfigLocation(t *testing.T) {
+	root := t.TempDir()
+	local := filepath.Join(root, "local")
+	s := sys{
+		home:      func() (string, error) { return filepath.Join(root, "home"), nil },
+		config:    func() (string, error) { return filepath.Join(root, "config"), nil },
+		localData: func() string { return local },
 	}
+	mkdir := func(parts ...string) string {
+		p := filepath.Join(append([]string{local}, parts...)...)
+		if err := os.MkdirAll(p, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	check := func(want string) {
+		t.Helper()
+		if got, _ := claudeDesktopConfig(s); got != want {
+			t.Errorf("config path = %s, want %s", got, want)
+		}
+	}
+
+	check(filepath.Join(root, "config", "Claude", "claude_desktop_config.json"))
+
+	pkg := mkdir("Packages", "Claude_pzs8sxrjxfjjc")
+	check(filepath.Join(pkg, "LocalCache", "Roaming", "Claude", "claude_desktop_config.json"))
+
+	// Current versions move their data to Claude-Data, which wins.
+	data := mkdir("Claude-Data")
+	sub := mkdir("Claude-Data", "claude_pzs8sxrjxfjjc")
+	check(filepath.Join(sub, "claude_desktop_config.json"))
+
+	// When several config files exist, the one written last is in use.
+	older := filepath.Join(data, "claude_desktop_config.json")
+	newer := filepath.Join(sub, "claude_desktop_config.json")
+	for i, p := range []string{older, newer} {
+		if err := os.WriteFile(p, []byte("{}"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		when := time.Now().Add(time.Duration(i-2) * time.Hour)
+		if err := os.Chtimes(p, when, when); err != nil {
+			t.Fatal(err)
+		}
+	}
+	check(newer)
+}
+
+func TestClaudeDesktopInstallNote(t *testing.T) {
+	h, _ := agentHarness(t, "/usr/local/bin/tool")
 	if code := h.run("agent", "install", "claude-desktop"); code != ExitOK {
 		t.Fatalf("install: exit %d, %s", code, h.stderr)
 	}
-	res := agentResult(t, h)
-	want := filepath.Join(pkg, "LocalCache", "Roaming", "Claude", "claude_desktop_config.json")
-	if res.Path != want || !strings.Contains(res.Note, "Quit Claude Desktop") {
-		t.Errorf("result = %+v, want path %s and a restart note", res, want)
-	}
-	if _, err := os.Stat(want); err != nil {
-		t.Errorf("config not written to the MSIX location: %v", err)
+	if res := agentResult(t, h); !strings.Contains(res.Note, "Quit Claude Desktop") {
+		t.Errorf("result = %+v, want a restart note", res)
 	}
 }
 

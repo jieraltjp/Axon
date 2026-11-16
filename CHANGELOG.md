@@ -12,7 +12,7 @@ All notable changes to this project are documented here. Axon follows [Semantic 
 
 ### Fixed
 
-- `agent install claude-desktop` now writes to the config that the Windows MSIX build of Claude Desktop actually reads (`%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude`). This build comes from the official installer, the Microsoft Store and WinGet. Results now include a note on what to do next, such as restarting Claude Desktop.
+- `agent install claude-desktop` now finds the config file that Claude Desktop actually reads on Windows, where the location has moved twice. It checks the newest location first: `%LOCALAPPDATA%\Claude-Data` (current versions), then the MSIX package's virtualized `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude`, then the documented `%APPDATA%\Claude`. Install results now include a note on what to do next, such as restarting Claude Desktop.
 
 ## v0.1.0 (2026-11-16)
 

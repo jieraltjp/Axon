@@ -22,21 +22,57 @@ type agentTarget struct {
 	note   string // what the user must do for the change to take effect
 }
 
-// claudeDesktopConfig locates Claude Desktop's config file. The Windows MSIX
-// build (official installer, Microsoft Store, WinGet) runs in a container
-// and reads a virtualized copy under %LOCALAPPDATA%\Packages\Claude_*,
-// not the documented %APPDATA%\Claude path.
+// claudeDesktopConfig locates the config file Claude Desktop reads. On
+// Windows the location has moved twice, so the newest layout wins:
+//
+//  1. %LOCALAPPDATA%\Claude-Data, where current versions keep their data
+//     (in a per-package subdirectory such as claude_<id> for MSIX builds);
+//  2. %LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude, the
+//     virtualized copy older MSIX builds read;
+//  3. %APPDATA%\Claude, the documented location (also macOS and Linux via
+//     the user config directory).
 func claudeDesktopConfig(s sys) (string, error) {
+	const name = "claude_desktop_config.json"
 	if local := s.localData(); local != "" {
-		matches, _ := filepath.Glob(filepath.Join(local, "Packages", "Claude_*"))
-		for _, m := range matches {
-			if info, err := os.Stat(m); err == nil && info.IsDir() {
-				return filepath.Join(m, "LocalCache", "Roaming", "Claude", "claude_desktop_config.json"), nil
+		data := filepath.Join(local, "Claude-Data")
+		if isDir(data) {
+			// Prefer the config file the app wrote most recently.
+			candidates := []string{filepath.Join(data, name)}
+			subdirs, _ := filepath.Glob(filepath.Join(data, "claude_*"))
+			for _, d := range subdirs {
+				candidates = append(candidates, filepath.Join(d, name))
+			}
+			var newest string
+			var newestTime int64
+			for _, c := range candidates {
+				if info, err := os.Stat(c); err == nil && info.ModTime().UnixNano() > newestTime {
+					newest, newestTime = c, info.ModTime().UnixNano()
+				}
+			}
+			if newest != "" {
+				return newest, nil
+			}
+			for _, d := range subdirs {
+				if isDir(d) {
+					return filepath.Join(d, name), nil
+				}
+			}
+			return filepath.Join(data, name), nil
+		}
+		packages, _ := filepath.Glob(filepath.Join(local, "Packages", "Claude_*"))
+		for _, p := range packages {
+			if isDir(p) {
+				return filepath.Join(p, "LocalCache", "Roaming", "Claude", name), nil
 			}
 		}
 	}
 	dir, err := s.config()
-	return filepath.Join(dir, "Claude", "claude_desktop_config.json"), err
+	return filepath.Join(dir, "Claude", name), err
+}
+
+func isDir(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
 }
 
 // sys gives access to the user's environment; tests replace it.
