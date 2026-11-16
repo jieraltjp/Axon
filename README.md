@@ -18,16 +18,18 @@ Write a command once. Ship it to humans, AI agents, and MCP clients.
 
 ## Why
 
-In 2026, AI agents mostly use tools through **CLIs plus Skills**, with MCP filling the gaps. Your CLI's users now include agents, and agents need a few things humans don't:
+Your CLI no longer has one kind of user. It also has:
 
-- JSON output when stdout is not a TTY, with data on stdout and logs on stderr
-- A `schema` command that describes every command, flag, and exit code
-- Structured errors and stable exit codes
-- Output trimming (`--fields`) to save tokens
-- Explicit confirmation before destructive actions
-- A Skill file so the agent knows how to use the tool, and optionally an MCP server
+- **Agents with a shell** (Claude Code, Codex, ...), which work best with a Skill that tells them how to use the tool
+- **Agents without a shell** (chat apps, IDE assistants), which can only reach your tool through **MCP**
+- **Scripts and programs**, which need **JSON output, structured errors and stable exit codes**
+- **Humans**, who still want help text, tables and a prompt before anything destructive
 
-Today every CLI author builds all of this by hand. **Axon makes it the default.**
+Supporting all of them usually means writing an MCP server, a Skill file, a JSON mode and an error format next to your CLI, and then keeping them all in sync.
+
+**With Axon, you write each command once as a typed Go function and every interface comes from that.** The [notes example](examples/notes) is 236 lines including its MCP server, Skill, `schema` command, JSON mode and confirmation flow. The same CLI written with plain Cobra is 261 lines and has none of these.
+
+> **What we measured.** In our [benchmarks](bench/RESULTS.md), current models (Sonnet and Haiku) used a plain Cobra CLI about as well as an Axon one, and MCP, Skill + CLI and bare CLI cost about the same in Claude Code. Axon does not make agents smarter. It means you build the CLI once and reach every kind of user.
 
 ## Try it
 

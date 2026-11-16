@@ -30,4 +30,5 @@ Thumbs.db
 
 # Benchmark artifacts
 /bench/bin/
-/bench/results.json
+
+__pycache__/

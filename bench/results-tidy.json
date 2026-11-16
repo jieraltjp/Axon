@@ -1,0 +1,68 @@
+[
+  {
+    "task": "tidy",
+    "config": "mcp",
+    "ok": true,
+    "input_tokens": 45952,
+    "output_tokens": 563,
+    "cost_usd": 0.037635,
+    "turns": 4,
+    "seconds": 9.4,
+    "result": "Your notes look fairly tidy already, so I haven't changed anything.\n\n- **Notes:** you have 3. They are \"Agent-first CLI checklist\" (agents, cli), \"MCP vs CLI token costs\" (agents, mcp) and \"Learn Go g"
+  },
+  {
+    "task": "tidy",
+    "config": "skill",
+    "ok": true,
+    "input_tokens": 46347,
+    "output_tokens": 441,
+    "cost_usd": 0.0371894,
+    "turns": 4,
+    "seconds": 8.7,
+    "result": "You have only three notes, and they already look tidy:\n\n| ID | Title | Tags |\n|----|-------|------|\n| 3 | Agent-first CLI checklist | agents, cli |\n| 2 | MCP vs CLI token costs | agents, mcp |\n| 1 | L"
+  },
+  {
+    "task": "tidy",
+    "config": "mcp",
+    "ok": true,
+    "input_tokens": 46536,
+    "output_tokens": 561,
+    "cost_usd": 0.0388338,
+    "turns": 4,
+    "seconds": 9.7,
+    "result": "I looked through your notes, and they're already fairly tidy. I haven't changed anything.\n\n- **Count:** There are 3 notes: \"Agent-first CLI checklist\", \"MCP vs CLI token costs\" and \"Learn Go generics\""
+  },
+  {
+    "task": "tidy",
+    "config": "skill",
+    "ok": true,
+    "input_tokens": 46296,
+    "output_tokens": 357,
+    "cost_usd": 0.036202399999999996,
+    "turns": 4,
+    "seconds": 7.9,
+    "result": "Your notes look fairly tidy already. There are only three, each with a clear title and tags:\n\n| ID | Title | Tags |\n|----|-------|------|\n| 3 | Agent-first CLI checklist | agents, cli |\n| 2 | MCP vs C"
+  },
+  {
+    "task": "tidy",
+    "config": "mcp",
+    "ok": true,
+    "input_tokens": 46524,
+    "output_tokens": 580,
+    "cost_usd": 0.0390062,
+    "turns": 4,
+    "seconds": 9.4,
+    "result": "Your notes are already fairly tidy, so I didn't change anything. You have three notes:\n\n| ID | Title | Tags |\n|----|-------|------|\n| 3 | Agent-first CLI checklist | agents, cli |\n| 2 | MCP vs CLI tok"
+  },
+  {
+    "task": "tidy",
+    "config": "skill",
+    "ok": true,
+    "input_tokens": 46276,
+    "output_tokens": 411,
+    "cost_usd": 0.036624399999999994,
+    "turns": 4,
+    "seconds": 8.4,
+    "result": "Your notes look already tidy, so I haven't changed anything. You have three notes:\n\n| ID | Title | Tags |\n|----|-------|------|\n| 3 | Agent-first CLI checklist | agents, cli |\n| 2 | MCP vs CLI token c"
+  }
+]

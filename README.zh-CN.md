@@ -18,16 +18,18 @@
 
 ## 为什么
 
-2026 年，AI Agent 主要通过 **CLI + Skills** 使用工具，MCP 作为补充。你的 CLI 的用户里已经有了 Agent，而 Agent 需要一些人不需要的东西：
+你的 CLI 的用户不再只有一种：
 
-- 非 TTY 时输出 JSON；数据走 stdout，日志走 stderr
-- `schema` 命令：描述所有命令、参数和退出码
-- 结构化的错误和稳定的退出码
-- 用 `--fields` 裁剪输出，节省 token
-- 危险操作前需要显式确认
-- 一个 Skill 文件告诉 Agent 怎么用，以及可选的 MCP Server
+- **有 shell 的 Agent**（Claude Code、Codex……）：配上一个说明用法的 Skill 效果最好
+- **没有 shell 的 Agent**（聊天应用、IDE 助手）：只能通过 **MCP** 使用你的工具
+- **脚本和程序**：需要 **JSON 输出、结构化错误和稳定的退出码**
+- **人**：仍然需要帮助信息、表格，以及危险操作前的确认
 
-现在，每个 CLI 作者都要手工实现这一整套。**Axon 让它们成为默认行为。**
+要同时支持它们，通常意味着在 CLI 之外再写 MCP Server、Skill 文件、JSON 模式和错误格式，并且一直保持同步。
+
+**用 Axon，每个命令只需写一次类型化的 Go 函数，所有接口都从这一份定义而来。** [notes 示例](examples/notes)总共 236 行，包含 MCP Server、Skill、`schema` 命令、JSON 模式和确认流程。用普通 Cobra 写的同一个 CLI 有 261 行，而这些一样都没有。
+
+> **实测结论。** 在我们的[对比测试](bench/RESULTS.md)中，当前的模型（Sonnet 和 Haiku）使用普通 Cobra CLI 的效果和 Axon CLI 相差不大；在 Claude Code 中，MCP、Skill + CLI、只有 CLI 三种方式的成本也差不多。Axon 不会让 Agent 变聪明，它的价值在于：CLI 只写一次，就能覆盖所有类型的用户。
 
 ## 试一试
 
