@@ -1,0 +1,21 @@
+name: Feature request or feedback
+description: Ideas, API feedback, or a use case Axon does not cover yet
+labels: [enhancement]
+body:
+  - type: textarea
+    id: usecase
+    attributes:
+      label: What are you trying to build?
+      description: The CLI and the users (humans, scripts, agents) you want to serve. Real use cases help us most.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would help?
+      description: The behavior or API you would like, if you have one in mind.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What do you use today?
+      description: Workarounds or other tools you have tried.

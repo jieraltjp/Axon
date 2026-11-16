@@ -1,0 +1,34 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: The command you ran, the output you got, and what you expected instead.
+      placeholder: |
+        $ mycli list | cat
+        ...
+    validations:
+      required: true
+  - type: textarea
+    id: code
+    attributes:
+      label: Minimal code
+      description: The smallest command definition that shows the problem.
+      render: go
+  - type: input
+    id: version
+    attributes:
+      label: Axon version
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Go version and OS
+      placeholder: go1.26 on macOS 15
+    validations:
+      required: true
