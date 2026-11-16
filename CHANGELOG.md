@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here. Axon follows [Semantic Versioning](https://semver.org/); until v1.0, minor versions may contain breaking changes.
 
-## Unreleased
+## v0.2.0 (2026-11-16)
 
 ### Added
 
