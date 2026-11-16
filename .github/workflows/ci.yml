@@ -26,3 +26,7 @@ jobs:
       - name: Race detector
         if: runner.os == 'Linux'
         run: go test -race -count=1 ./...
+      - name: Build the yq case study
+        if: runner.os == 'Linux' && matrix.go == '1.26.x'
+        working-directory: examples/yq
+        run: go vet ./... && go build ./...
