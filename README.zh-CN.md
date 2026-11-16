@@ -11,7 +11,7 @@
 </div>
 
 > [!WARNING]
-> **Axon 目前处于设计阶段，还不能使用。** 下面的 API 是草案，提前公开是为了收集反馈。
+> **Axon 目前是早期原型。** 核心功能已经可用并有测试覆盖，但在 v1.0 之前 API 还会调整。需要 Go 1.25+。
 > 欢迎[提出意见](https://github.com/jieraltjp/Axon/issues)。
 
 ---
@@ -29,7 +29,18 @@
 
 现在，每个 CLI 作者都要手工实现这一整套。**Axon 让它们成为默认行为。**
 
-## 快速预览（API 草案）
+## 试一试
+
+```bash
+git clone https://github.com/jieraltjp/Axon.git && cd Axon
+go run ./examples/notes list              # 表格，给人看
+go run ./examples/notes list | cat        # JSON，给 Agent 和脚本
+go run ./examples/notes delete 1          # 先询问确认；Agent 调用时不带 --yes 会以退出码 4 拒绝
+go run ./examples/notes schema search     # Agent 读取的命令描述
+go run ./examples/notes skills export     # 生成 skills/notes/SKILL.md
+```
+
+## 快速预览
 
 ```go
 package main

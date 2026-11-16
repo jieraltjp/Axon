@@ -11,8 +11,8 @@ Write a command once. Ship it to humans, AI agents, and MCP clients.
 </div>
 
 > [!WARNING]
-> **Axon is in the design phase.** Nothing here is usable yet. The API below is a draft, and we are publishing it early to get feedback.
-> Have an opinion? [Open a discussion](https://github.com/jieraltjp/Axon/issues).
+> **Axon is an early prototype.** The core works and is tested, but the API will change before v1.0. Requires Go 1.25+.
+> Have an opinion? [Open an issue](https://github.com/jieraltjp/Axon/issues).
 
 ---
 
@@ -29,7 +29,18 @@ In 2026, AI agents mostly use tools through **CLIs plus Skills**, with MCP filli
 
 Today every CLI author builds all of this by hand. **Axon makes it the default.**
 
-## A quick look (draft API)
+## Try it
+
+```bash
+git clone https://github.com/jieraltjp/Axon.git && cd Axon
+go run ./examples/notes list              # a table, for humans
+go run ./examples/notes list | cat        # JSON, for agents and scripts
+go run ./examples/notes delete 1          # asks first; agents get exit code 4 unless --yes
+go run ./examples/notes schema search     # what an agent reads
+go run ./examples/notes skills export     # writes skills/notes/SKILL.md
+```
+
+## A quick look
 
 ```go
 package main
